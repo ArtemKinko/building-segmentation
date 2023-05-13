@@ -3,6 +3,7 @@ import random
 import math
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+import time
 
 
 class point:
@@ -23,6 +24,7 @@ class point:
 def PSO_Image(image_path):
     image = Image.open(image_path, 'r')
     print(image.size)
+    start_time = time.time()
 
     # структура пикселей
     pixels_list = list(image.getdata())
@@ -116,8 +118,10 @@ def PSO_Image(image_path):
     #            math.floor(cluster_centers[i][2])) for i in range(k_regions)]
 
     # изменение цветов на изображении
+    new_pixels_array = []
     new_pixels = []
     for i in range(image.size[1]):
+        temp_pixel_array = []
         for j in range(image.size[0]):
             pixel = pixels_array[i][j]
 
@@ -147,9 +151,88 @@ def PSO_Image(image_path):
                         current_cluster = cluster_num
                         min_value = value
             new_pixels.append(colors[current_cluster])
+            temp_pixel_array.append(colors[current_cluster])
+        new_pixels_array.append(temp_pixel_array)
+    elapsed_time = time.time() - start_time
+    print(
+        "Execution time: " + str(int(elapsed_time / 60)) + " minute(s) and " + str(
+            int(elapsed_time % 60)) + " seconds")
+
     new_image = Image.new("RGB", (image.size[0], image.size[1]))
     new_image.putdata(new_pixels)
     new_image.save(image_path + "NEW.png")
+
+
+    # черно-белое изображение
+    # координаты точно здания
+    x_color = 180
+    y_color = 700
+    color = new_pixels_array[x_color][y_color]
+    print(color)
+    black_pixels = []
+    black_pixels_array = []
+    for i in range(image.size[1]):
+        temp_black_pixel_array = []
+        for j in range(image.size[0]):
+            pixel = new_pixels_array[i][j]
+            if pixel[0] == color[0] and pixel[1] == color[1] and pixel[2] == color[2]:
+                black_pixels.append([0, 0, 0])
+                temp_black_pixel_array.append([0, 0, 0])
+            else:
+                black_pixels.append([255, 255, 255])
+                temp_black_pixel_array.append([255, 255, 255])
+        black_pixels_array.append(temp_black_pixel_array)
+
+    # каждые 100x100 пикселей считаем количество черных
+    pixel_scale = 100
+    colors = []
+    for i in range(0, image.size[1], pixel_scale):
+        temp_colors = []
+        for j in range(0, image.size[0], pixel_scale):
+
+            pixel_num = 0
+            black_pixel_num = 0
+
+
+            # ОБРАБОТАТЬ Out Of Range НА ГРАНИЦАХ
+
+
+            for x in range(i, i + pixel_scale):
+                for y in range(j, j + pixel_scale):
+                    pixel = black_pixels_array[x][y]
+                    if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
+                        black_pixel_num += 1
+                    pixel_num += 1
+            percent = black_pixel_num / pixel_num
+            color = int(255 * percent)
+            temp_colors.append(color)
+        colors.append(temp_colors)
+
+    # закрашиваем изображение соответствующим цветом
+    picture_pixels_array = []
+    for i in range(0, image.size[1]):
+        temp_picture_pixels_array = []
+        for j in range(0, image.size[0]):
+            current_color = colors[math.floor(i / 100)][math.floor(j / 100)]
+            temp_picture_pixels_array.append([current_color, 50, 50])
+        picture_pixels_array.append(temp_picture_pixels_array)
+
+
+
+    fig = plt.figure()
+    a = fig.add_subplot(2, 2, 1)
+    plt.imshow(pixels_array)
+    a.set_title('Original Image')
+    a = fig.add_subplot(2, 2, 2)
+    plt.imshow(new_pixels_array)
+    a.set_title('Segmented Image')
+    a = fig.add_subplot(2, 2, 3)
+    plt.imshow(black_pixels_array)
+    a.set_title('Segmented Image with 2 colors')
+    a = fig.add_subplot(2, 2, 4)
+    plt.imshow(picture_pixels_array)
+    a.set_title('Picture')
+    plt.show()
 
     # print(kmeans.cluster_centers_)
 
