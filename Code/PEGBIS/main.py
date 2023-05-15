@@ -101,7 +101,7 @@ if __name__ == "__main__":
     sigma = 0.3
     k = 500
     min = 1
-    input_path = "data/s2.png"
+    input_path = "data/l1.png"
 
     # Loading the image
     input_image = imageio.v2.imread(input_path)

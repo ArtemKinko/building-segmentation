@@ -30,12 +30,18 @@ def PSO_Image(image_path):
     # структура пикселей
     pixels_list = list(image.getdata())
     pixels_array = []
+
+    image_rs = []
+    image_gs = []
+    image_bs = []
     for i in range(image.size[1]):
         image_row = []
         for j in range(image.size[0]):
             image_row.append(pixels_list[i * image.size[0] + j])
+            image_rs.append(pixels_list[i * image.size[0] + j][0])
+            image_gs.append(pixels_list[i * image.size[0] + j][1])
+            image_bs.append(pixels_list[i * image.size[0] + j][2])
         pixels_array.append(image_row)
-        # print(image_row)
 
     # разбиваем цветовые интервалы на регионы
     regions_num = 10
@@ -59,6 +65,9 @@ def PSO_Image(image_path):
     particles = [point(random.randint(0, image.size[0]),
                        random.randint(0, image.size[1]),
                        0, 0, 0) for _ in range(particles_num)]
+
+
+
     #
     # # задание параметров
     # iteration_num = 100  # количество итераций
@@ -75,6 +84,8 @@ def PSO_Image(image_path):
     #     inertia = get_inertia(iteration)
     #     print(inertia)
 
+
+
     # k-means
     k_regions = 3  # количество регионов
     data = []
@@ -90,7 +101,7 @@ def PSO_Image(image_path):
     inertia.append(kmeans.inertia_)
 
     cluster_centers = kmeans.cluster_centers_
-    colors = [(255, 0, 0),
+    colors_rgb = [(255, 0, 0),
               (0, 255, 0),
               (0, 0, 255),
               (255, 255, 0),
@@ -151,8 +162,8 @@ def PSO_Image(image_path):
                     if value < min_value:
                         current_cluster = cluster_num
                         min_value = value
-            new_pixels.append(colors[current_cluster])
-            temp_pixel_array.append(colors[current_cluster])
+            new_pixels.append(colors_rgb[current_cluster])
+            temp_pixel_array.append(colors_rgb[current_cluster])
         new_pixels_array.append(temp_pixel_array)
     elapsed_time = time.time() - start_time
     print(
@@ -196,8 +207,6 @@ def PSO_Image(image_path):
             pixel_num = 0
             black_pixel_num = 0
 
-
-            # ОБРАБОТАТЬ Out Of Range НА ГРАНИЦАХ
             if (i + pixel_scale) >= image.size[1]:
                 for x in range(i, image.size[1]):
                     if (j + pixel_scale) >= image.size[0]:
@@ -243,7 +252,7 @@ def PSO_Image(image_path):
         for j in range(0, image.size[0]):
             current_color = colors[math.floor(i / pixel_scale)][math.floor(j / pixel_scale)]
             temp_picture_pixels_array.append([255, 255 - current_color, 255 - current_color])
-            picture_pixels.append((255 - current_color * 2, 255 - current_color * 2, 255))
+            picture_pixels.append((255 - current_color * 3, 255 - current_color * 3, 255))
         picture_pixels_array.append(temp_picture_pixels_array)
 
     mask_image = Image.new("RGB", (image.size[0], image.size[1]))
@@ -255,19 +264,63 @@ def PSO_Image(image_path):
     dst = cv.addWeighted(cv_image, 1, cv_mask, 0.3, 0)
 
 
+    # отображаем маску плотности
+    fig = plt.figure()
+    a = fig.add_subplot(1, 2, 1)
+    plt.imshow(picture_pixels_array)
+    a.set_title('Маска плотности для области ' + str(pixel_scale) + ' на ' + str(pixel_scale) + ' пикселей')
+
+    # отображаем шкалу распределения плотности
+    mask_line_pixels_array = []
+    for percent in range(100):
+        color = int(255 * percent / 100)
+        temp_mask_line_pixels_array = []
+        for _ in range(20):
+            temp_mask_line_pixels_array.append([255, 255 - color, 255 - color])
+        mask_line_pixels_array.append(temp_mask_line_pixels_array)
+    a = fig.add_subplot(1, 2, 2)
+    a.invert_yaxis()
+    a.get_xaxis().set_visible(False)
+    plt.imshow(mask_line_pixels_array)
+    a.set_title('Шкала плотности распределения в процентах (%)')
+    plt.show()
+
+    markers_color = ['r', 'g', 'b']
+    fig = plt.figure()
+    a = fig.add_subplot(projection='3d')
+    for i in range(k_regions):
+        current_color = colors_rgb[i]
+        image_rs = []
+        image_gs = []
+        image_bs = []
+        for x in range(0, image.size[1]):
+            for y in range(0, image.size[0]):
+                if new_pixels_array[x][y] == current_color:
+                    image_rs.append(pixels_array[x][y][0])
+                    image_gs.append(pixels_array[x][y][1])
+                    image_bs.append(pixels_array[x][y][2])
+        a.scatter(image_rs, image_gs, image_bs, alpha=0.7, color=markers_color[i])
+
+
+
+    a.set_xlabel('Красная составляющая')
+    a.set_ylabel('Зеленая составляющая')
+    a.set_zlabel('Синяя составляющая')
+    plt.show()
+
     fig = plt.figure()
     a = fig.add_subplot(2, 2, 1)
     plt.imshow(pixels_array)
-    a.set_title('Original Image')
+    a.set_title('Оригинальное изображение')
     a = fig.add_subplot(2, 2, 2)
     plt.imshow(new_pixels_array)
-    a.set_title('Segmented Image')
+    a.set_title('Сегментированное изображение')
     a = fig.add_subplot(2, 2, 3)
     plt.imshow(black_pixels_array)
-    a.set_title('Segmented Image with 2 colors')
+    a.set_title('Сегментированное изображение (2 цвета)')
     a = fig.add_subplot(2, 2, 4)
     plt.imshow(dst)
-    a.set_title('Original image with density mask')
+    a.set_title('Оригинальное изображение с наложенной маской плотности')
     plt.show()
 
     # print(kmeans.cluster_centers_)
