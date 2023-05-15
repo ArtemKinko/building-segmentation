@@ -1,5 +1,6 @@
 from PIL import Image
 import random
+import cv2 as cv
 import math
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
@@ -167,6 +168,8 @@ def PSO_Image(image_path):
     # координаты точно здания
     x_color = 180
     y_color = 700
+    # x_color = 100
+    # y_color = 100
     color = new_pixels_array[x_color][y_color]
     print(color)
     black_pixels = []
@@ -183,8 +186,8 @@ def PSO_Image(image_path):
                 temp_black_pixel_array.append([255, 255, 255])
         black_pixels_array.append(temp_black_pixel_array)
 
-    # каждые 100x100 пикселей считаем количество черных
-    pixel_scale = 100
+    # каждые n x n пикселей считаем количество черных
+    pixel_scale = 50
     colors = []
     for i in range(0, image.size[1], pixel_scale):
         temp_colors = []
@@ -195,28 +198,61 @@ def PSO_Image(image_path):
 
 
             # ОБРАБОТАТЬ Out Of Range НА ГРАНИЦАХ
+            if (i + pixel_scale) >= image.size[1]:
+                for x in range(i, image.size[1]):
+                    if (j + pixel_scale) >= image.size[0]:
+                        for y in range(j, image.size[0]):
+                            pixel = black_pixels_array[x][y]
+                            if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
+                                black_pixel_num += 1
+                            pixel_num += 1
+                    else:
+                        for y in range(j, j + pixel_scale):
+                            pixel = black_pixels_array[x][y]
+                            if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
+                                black_pixel_num += 1
+                            pixel_num += 1
+                percent = black_pixel_num / pixel_num
+                color = int(255 * percent)
+                temp_colors.append(color)
 
-
-            for x in range(i, i + pixel_scale):
-                for y in range(j, j + pixel_scale):
-                    pixel = black_pixels_array[x][y]
-                    if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
-                        black_pixel_num += 1
-                    pixel_num += 1
-            percent = black_pixel_num / pixel_num
-            color = int(255 * percent)
-            temp_colors.append(color)
+            else:
+                for x in range(i, i + pixel_scale):
+                    if (j + pixel_scale) >= image.size[0]:
+                        for y in range(j, image.size[0]):
+                            pixel = black_pixels_array[x][y]
+                            if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
+                                black_pixel_num += 1
+                            pixel_num += 1
+                    else:
+                        for y in range(j, j + pixel_scale):
+                            pixel = black_pixels_array[x][y]
+                            if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
+                                black_pixel_num += 1
+                            pixel_num += 1
+                percent = black_pixel_num / pixel_num
+                color = int(255 * percent)
+                temp_colors.append(color)
         colors.append(temp_colors)
 
     # закрашиваем изображение соответствующим цветом
+    picture_pixels = []
     picture_pixels_array = []
     for i in range(0, image.size[1]):
         temp_picture_pixels_array = []
         for j in range(0, image.size[0]):
-            current_color = colors[math.floor(i / 100)][math.floor(j / 100)]
-            temp_picture_pixels_array.append([current_color, 50, 50])
+            current_color = colors[math.floor(i / pixel_scale)][math.floor(j / pixel_scale)]
+            temp_picture_pixels_array.append([255, 255 - current_color, 255 - current_color])
+            picture_pixels.append((255 - current_color * 2, 255 - current_color * 2, 255))
         picture_pixels_array.append(temp_picture_pixels_array)
 
+    mask_image = Image.new("RGB", (image.size[0], image.size[1]))
+    mask_image.putdata(picture_pixels)
+    mask_image.save(image_path + "MASK.png")
+
+    cv_image = cv.imread(image_path)
+    cv_mask = cv.imread(image_path + "MASK.png")
+    dst = cv.addWeighted(cv_image, 1, cv_mask, 0.3, 0)
 
 
     fig = plt.figure()
@@ -230,8 +266,8 @@ def PSO_Image(image_path):
     plt.imshow(black_pixels_array)
     a.set_title('Segmented Image with 2 colors')
     a = fig.add_subplot(2, 2, 4)
-    plt.imshow(picture_pixels_array)
-    a.set_title('Picture')
+    plt.imshow(dst)
+    a.set_title('Original image with density mask')
     plt.show()
 
     # print(kmeans.cluster_centers_)
