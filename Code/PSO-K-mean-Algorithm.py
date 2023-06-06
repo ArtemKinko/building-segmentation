@@ -7,24 +7,87 @@ import matplotlib.pyplot as plt
 import time
 
 
-class point:
-    x = 0
-    y = 0
-    cr1 = 0
-    cr2 = 0
-    cr3 = 0
+class particle:
+    red = 0
+    green = 0
+    blue = 0
 
-    def __init__(self, x, y, cr1, cr2, cr3):
-        self.x = x
-        self.y = y
-        self.cr1 = cr1
-        self.cr2 = cr2
-        self.cr3 = cr3
+    def __init__(self, cr1, cr2, cr3):
+        self.red = cr1
+        self.green = cr2
+        self.blue = cr3
+
+
+class swarm:
+    pixel_image = []  # список из пикселей всего изображения
+    particles_num = 50  # количество частиц
+    clusters_num = 3  # число кластеров
+    particles = []  # список частиц длиной по количеству кластеров, каждый элемент которого
+    # представляет теоретический центр кластера
+    z_max = 2 ** 24 - 1  # константа, необходимая для вычисления целевой функции
+    omega_1 = 0.4  # коэффициент учета максимального евклидово расстояния от частиц до кластеров
+    omega_2 = 0.1  # коэффициент учета минимального евклидово расстояния между парами кластерных центров
+
+    def create_random_particle(self):
+        return particle(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+    def get_euclidean_between_particle_and_pixel(self, particle1, pixel2):
+        # получаем евклидово расстояние между двумя частицами
+        return math.sqrt((particle1.red - pixel2[0]) ** 2 +
+                         (particle1.green - pixel2[1]) ** 2 +
+                         (particle1.blue - pixel2[2]) ** 2)
+
+    def generate_cluster_link(self, current_particle, image):
+        # определяем, к какому кластеру принадлежит каждый пиксель
+        link_list = []
+        for pixel in image:
+            best_link = 0
+            max_d = self.get_euclidean_between_particle_and_pixel(current_particle[0], pixel)
+            for i in range(self.clusters_num):
+                current_distance = self.get_euclidean_between_particle_and_pixel(current_particle[i], pixel)
+                if current_distance <= max_d:
+                    best_link = i
+                    max_d = current_distance
+            link_list.append(best_link)
+        return link_list
+
+    def calculate_euclidean_particles(self, current_particle):
+        # ищем максимальное среднее евклидово расстояние от пикселей до кластеров
+        max_euclidean = -1
+        for cluster in range(self.clusters_num):
+            summary_distance = 0
+            count_pixels = 0
+            link_list = self.generate_cluster_link(current_particle, self.pixel_image)
+            for i in range(len(self.pixel_image)):
+                if link_list[i] == cluster:
+                    summary_distance += self.get_euclidean_between_particle_and_pixel(current_particle[cluster],
+                                                                                      self.pixel_image[i])
+                    count_pixels += 1
+            print("Count pixels for cluster", cluster, "is:", count_pixels)
+            if summary_distance >= max_euclidean:
+                max_euclidean = summary_distance
+        return max_euclidean
+
+    def get_euclidean_between_particles(self, particle1, particle2):
+        # получаем евклидово расстояние между двумя частицами
+        return math.sqrt((particle1.red - particle2.red) ** 2 +
+                         (particle1.green - particle2.green) ** 2 +
+                         (particle1.blue - particle2.blue) ** 2)
+    def calculate_euclidean_clusters(self, current_particle):
+        for i in range()
+
+
+    def __init__(self, particles_num, cluster_num, image):
+        self.pixel_image = self.pixel_image
+        self.particles_num = particles_num
+        self.clusters_num = cluster_num
+        self.pixel_image = image
+        self.particles = [[swarm.create_random_particle(self) for _ in range(cluster_num)]
+                          for _ in range(particles_num)]
 
 
 def PSO_Image(image_path):
     image = Image.open(image_path, 'r')
-    print(image.size)
     start_time = time.time()
 
     # структура пикселей
@@ -43,51 +106,33 @@ def PSO_Image(image_path):
             image_bs.append(pixels_list[i * image.size[0] + j][2])
         pixels_array.append(image_row)
 
-    # разбиваем цветовые интервалы на регионы
-    regions_num = 10
-    regions = []
+    # ---------------------- PSO-K-MEANS
 
-    # находим левый и правый пределы у каждого цветового канала
-    for color in range(3):
-        color_list = [pixel[color] for pixel in pixels_list]
-        average = math.floor((max(color_list) - min(color_list)) / regions_num)
-        region = []
-        left_border = 0
-        for _ in range(regions_num - 1):
-            region.append([left_border, left_border + average])
-            left_border += average
-        region.append([left_border, max(color_list)])
-        regions.append(region)
-    print(regions)
+    particle_swarm = swarm(5, 3, pixels_list)
+    print(particle_swarm.calculate_euclidean_particles(particle_swarm.particles[0]))
 
     # инициализация роя
-    particles_num = 50  # количество частиц
-    particles = [point(random.randint(0, image.size[0]),
-                       random.randint(0, image.size[1]),
-                       0, 0, 0) for _ in range(particles_num)]
+    # количество частиц
+    particles_num = 50
+    particles = [point(random.randint(0, 255),
+                       random.randint(0, 255),
+                       random.randint(0, 255)) for _ in range(particles_num)]
 
+    # инициализация скоростей
+    speeds = []
 
+    # количество кластеров
+    k_regions = 6
 
-    #
-    # # задание параметров
-    # iteration_num = 100  # количество итераций
-    #
-    # inertia_max = 1
-    # inertia_min = 0
-    #
-    #
-    #
-    # def get_inertia(current_iteration):
-    #     return inertia_max - current_iteration * (inertia_max - inertia_min) / iteration_num
-    #
-    # for iteration in range(iteration_num):
-    #     inertia = get_inertia(iteration)
-    #     print(inertia)
+    # ускорения (личная и глобальная составляющие)
+    acceleration_c1 = 0.3  # от 0 до 1
+    acceleration_c1 = 0.7  # от 0 до 1
 
+    # максимальное количество итераций
+    max_iterations = 100
 
+    best_local_points = particles.copy()
 
-    # k-means
-    k_regions = 3  # количество регионов
     data = []
     for i in range(len(pixels_array)):
         for j in range(len(pixels_array[i])):
@@ -102,28 +147,28 @@ def PSO_Image(image_path):
 
     cluster_centers = kmeans.cluster_centers_
     colors_rgb = [(255, 0, 0),
-              (0, 255, 0),
-              (0, 0, 255),
-              (255, 255, 0),
-              (255, 0, 255),
-              (0, 255, 255),
-              (0, 0, 0),
-              (255, 255, 255),
-              (100, 20, 100),
-              (55, 255, 0),
-              (0, 55, 255),
-              (255, 255, 100),
-              (55, 0, 55),
-              (0, 100, 100),
-              (100, 100, 0),
-              (100, 100, 100),
-              (255, 0, 0),
-              (0, 255, 0),
-              (0, 0, 255),
-              (255, 255, 0),
-              (255, 0, 255),
-              (0, 255, 255)
-              ]
+                  (0, 255, 0),
+                  (0, 0, 255),
+                  (255, 255, 0),
+                  (255, 0, 255),
+                  (0, 255, 255),
+                  (0, 0, 0),
+                  (255, 255, 255),
+                  (100, 20, 100),
+                  (55, 255, 0),
+                  (0, 55, 255),
+                  (255, 255, 100),
+                  (55, 0, 55),
+                  (0, 100, 100),
+                  (100, 100, 0),
+                  (100, 100, 100),
+                  (255, 0, 0),
+                  (0, 255, 0),
+                  (0, 0, 255),
+                  (255, 255, 0),
+                  (255, 0, 255),
+                  (0, 255, 255)
+                  ]
 
     # colors = [(math.floor(cluster_centers[i][0]),
     #            math.floor(cluster_centers[i][1]),
@@ -141,17 +186,6 @@ def PSO_Image(image_path):
             current_cluster = -1
             # проверяем, к какому кластеру относится пиксель
             for cluster_num in range(k_regions):
-                # для 5 - 5
-                # value = pow(i - cluster_centers[cluster_num][0], 2) + \
-                #     pow(j - cluster_centers[cluster_num][1], 2) + \
-                #     pow(pixel[0] - cluster_centers[cluster_num][2], 2) + \
-                #     pow(pixel[1] - cluster_centers[cluster_num][3], 2) + \
-                #     pow(pixel[2] - cluster_centers[cluster_num][4], 2)
-                # для 5 - 3
-                # value = pow(pixel[0] - cluster_centers[cluster_num][2], 2) + \
-                #         pow(pixel[1] - cluster_centers[cluster_num][3], 2) + \
-                #         pow(pixel[2] - cluster_centers[cluster_num][4], 2)
-                # для 3 - 3
                 value = pow(pixel[0] - cluster_centers[cluster_num][0], 2) + \
                         pow(pixel[1] - cluster_centers[cluster_num][1], 2) + \
                         pow(pixel[2] - cluster_centers[cluster_num][2], 2)
@@ -173,7 +207,6 @@ def PSO_Image(image_path):
     new_image = Image.new("RGB", (image.size[0], image.size[1]))
     new_image.putdata(new_pixels)
     new_image.save(image_path + "NEW.png")
-
 
     # черно-белое изображение
     # координаты точно здания
@@ -263,7 +296,6 @@ def PSO_Image(image_path):
     cv_mask = cv.imread(image_path + "MASK.png")
     dst = cv.addWeighted(cv_image, 1, cv_mask, 0.3, 0)
 
-
     # отображаем маску плотности
     fig = plt.figure()
     a = fig.add_subplot(1, 2, 1)
@@ -285,28 +317,28 @@ def PSO_Image(image_path):
     a.set_title('Шкала плотности распределения в процентах (%)')
     plt.show()
 
-    markers_color = ['r', 'g', 'b']
-    fig = plt.figure()
-    a = fig.add_subplot(projection='3d')
-    for i in range(k_regions):
-        current_color = colors_rgb[i]
-        image_rs = []
-        image_gs = []
-        image_bs = []
-        for x in range(0, image.size[1]):
-            for y in range(0, image.size[0]):
-                if new_pixels_array[x][y] == current_color:
-                    image_rs.append(pixels_array[x][y][0])
-                    image_gs.append(pixels_array[x][y][1])
-                    image_bs.append(pixels_array[x][y][2])
-        a.scatter(image_rs, image_gs, image_bs, alpha=0.7, color=markers_color[i])
-
-
-
-    a.set_xlabel('Красная составляющая')
-    a.set_ylabel('Зеленая составляющая')
-    a.set_zlabel('Синяя составляющая')
-    plt.show()
+    # markers_color = ['r', 'g', 'b']
+    # fig = plt.figure()
+    # a = fig.add_subplot(projection='3d')
+    # for i in range(k_regions):
+    #     current_color = colors_rgb[i]
+    #     image_rs = []
+    #     image_gs = []
+    #     image_bs = []
+    #     for x in range(0, image.size[1]):
+    #         for y in range(0, image.size[0]):
+    #             if new_pixels_array[x][y] == current_color:
+    #                 image_rs.append(pixels_array[x][y][0])
+    #                 image_gs.append(pixels_array[x][y][1])
+    #                 image_bs.append(pixels_array[x][y][2])
+    #     a.scatter(image_rs, image_gs, image_bs, alpha=0.7, color=markers_color[i])
+    #
+    #
+    #
+    # a.set_xlabel('Красная составляющая')
+    # a.set_ylabel('Зеленая составляющая')
+    # a.set_zlabel('Синяя составляющая')
+    # plt.show()
 
     fig = plt.figure()
     a = fig.add_subplot(2, 2, 1)
@@ -324,9 +356,6 @@ def PSO_Image(image_path):
     plt.show()
 
     # print(kmeans.cluster_centers_)
-
-
-
 
 
 PSO_Image('../Dataset/l1.png')
