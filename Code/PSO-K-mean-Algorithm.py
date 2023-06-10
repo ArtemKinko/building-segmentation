@@ -20,6 +20,7 @@ class particle:
 
 class swarm:
     pixel_image = []  # список из пикселей всего изображения
+    iterations = 10  # количество итераций
     particles_num = 50  # количество частиц
     clusters_num = 3  # число кластеров
     particles = []  # список частиц длиной по количеству кластеров, каждый элемент которого
@@ -27,6 +28,16 @@ class swarm:
     z_max = 2 ** 24 - 1  # константа, необходимая для вычисления целевой функции
     omega_1 = 0.4  # коэффициент учета максимального евклидово расстояния от частиц до кластеров
     omega_2 = 0.1  # коэффициент учета минимального евклидово расстояния между парами кластерных центров
+
+    best_local = []  # список лучших позиций каждой частицы
+    best_local_num = []  # список лучших целевых функций для каждой частицы
+    best_global = []  # лучшая частица за все поколения
+    best_global_num = []  # лучшее значение целевой функции у частицы за все поколения
+    best_global_num_all = []  # все лучшие значения целевой функции
+    velocities = []  # список скоростей всех частиц
+    omega = 0.9  # весовой коэффициент инерции (изменяется по экспоненциальному закону
+    c_1 = 0.4  # коэффициент локального ускорения
+    c_2 = 0.7  # коэффициент глобального ускорения
 
     def create_random_particle(self):
         return particle(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
@@ -73,8 +84,95 @@ class swarm:
         return math.sqrt((particle1.red - particle2.red) ** 2 +
                          (particle1.green - particle2.green) ** 2 +
                          (particle1.blue - particle2.blue) ** 2)
+
     def calculate_euclidean_clusters(self, current_particle):
-        for i in range()
+        # ищем минимальное евклидово расстояние между парами кластерных центров\
+        min_euclidean = self.get_euclidean_between_particles(current_particle[0], current_particle[1])
+        for i in range(len(current_particle)):
+            for j in range(i, len(current_particle), 1):
+                current_euclidean = self.get_euclidean_between_particles(current_particle[i], current_particle[j])
+                if current_euclidean < min_euclidean:
+                    min_euclidean = current_euclidean
+        return min_euclidean
+
+    def calculate_target_function(self, current_particle):
+        # подсчитываем целевую функцию
+        d_max = self.calculate_euclidean_particles(current_particle)
+        d_min = self.calculate_euclidean_clusters(current_particle)
+        return self.omega_1 * d_max + self.omega_2 * (self.z_max - d_min)
+
+    def correct_velocities(self):
+        # корректируем значения скоростей для частиц
+        for k in range(self.particles_num):
+            for i in range(self.clusters_num):
+                for j in range(3):
+                    current_x = (self.particles[k][i].red if j == 0 else (self.particles[k][i].green if j == 1 else
+                                                                          self.particles[k][i].blue))
+                    r_1 = random.random()
+                    r_2 = random.random()
+                    self.velocities[k][i][j] = self.omega * self.velocities[k][i][j] + self.c_1 * r_1 * \
+                                            (self.best_global[i][j] - current_x) + self.c_2 * r_2 *\
+                                            (self.best_local[k][i][j] - current_x)
+                    print("New velocity for particle №", k, ", cluster №", i, "and component №", j, "is",
+                          self.velocities[k][i][j])
+
+    def correct_positions(self):
+        # корректируем значения позиций для частиц
+        for k in range(self.particles_num):
+            for i in range(self.clusters_num):
+                for j in range(3):
+                    if j == 0:
+                        self.particles[k][i].red += self.velocities[k][i][j]
+                        if self.particles[k][i].red < 0:
+                            print("Particle out of range!")
+                            self.particles[k][i].red = 0
+                        if self.particles[k][i].red > 255:
+                            print("Particle out of range!")
+                            self.particles[k][i].red = 255
+                    if j == 1:
+                        self.particles[k][i].green += self.velocities[k][i][j]
+                        if self.particles[k][i].green < 0:
+                            print("Particle out of range!")
+                            self.particles[k][i].green = 0
+                        if self.particles[k][i].green > 255:
+                            print("Particle out of range!")
+                            self.particles[k][i].green = 255
+                    if j == 2:
+                        self.particles[k][i].blue += self.velocities[k][i][j]
+                        if self.particles[k][i].blue < 0:
+                            print("Particle out of range!")
+                            self.particles[k][i].blue = 0
+                        if self.particles[k][i].blue > 255:
+                            print("Particle out of range!")
+                            self.particles[k][i].blue = 255
+
+    def start_evolution(self):
+        for current_iteration in range(self.iterations):
+            print("--------- Iteration №", current_iteration)
+            self.omega = self.omega * math.exp(-(self.iterations - current_iteration) / current_iteration) + 0.4
+            print("Current omega is", self.omega)
+            # корректируем лучшие локальные и глобальные позиции
+            for i in range(self.particles_num):
+                current_target = self.calculate_target_function(self.particles[i])
+                print("For particle №", i, "target function is", current_target)
+                if current_target < self.best_local_num[i] or self.best_local_num[i] == -1:
+                    print("New local best!")
+                    self.best_local_num[i] = current_target
+                    self.best_local[i] = [[cluster.red, cluster.green, cluster.blue] for cluster in self.particles[i]]
+                if current_target < self.best_global_num or self.best_global_num == -1:
+                    print("New global best!")
+                    self.best_global_num = current_target
+                    self.best_global = [[cluster.red, cluster.green, cluster.blue] for cluster in self.particles[i]]
+            # добавляем лучшее значение в список для статистики
+            self.best_global_num_all.append(self.best_global_num)
+            # корректируем скорости
+            self.correct_velocities()
+            # корректируем позиции частиц
+            self.correct_positions()
+        print(self.best_global_num_all)
+        plt.plot([i for i in range(1, self.iterations + 1)], self.best_global_num_all)
+
+
 
 
     def __init__(self, particles_num, cluster_num, image):
@@ -84,6 +182,13 @@ class swarm:
         self.pixel_image = image
         self.particles = [[swarm.create_random_particle(self) for _ in range(cluster_num)]
                           for _ in range(particles_num)]
+        self.velocities = [[[0, 0, 0] for _ in range(cluster_num)]
+                           for _ in range(particles_num)]
+        self.best_local_num = [-1 for _ in range(particles_num)]
+        self.best_global_num = -1
+        self.best_local = [[[0, 0, 0] for _ in range(cluster_num)]
+                           for _ in range(particles_num)]
+        self.best_global = [0, 0, 0]
 
 
 def PSO_Image(image_path):
@@ -108,30 +213,8 @@ def PSO_Image(image_path):
 
     # ---------------------- PSO-K-MEANS
 
-    particle_swarm = swarm(5, 3, pixels_list)
-    print(particle_swarm.calculate_euclidean_particles(particle_swarm.particles[0]))
-
-    # инициализация роя
-    # количество частиц
-    particles_num = 50
-    particles = [point(random.randint(0, 255),
-                       random.randint(0, 255),
-                       random.randint(0, 255)) for _ in range(particles_num)]
-
-    # инициализация скоростей
-    speeds = []
-
-    # количество кластеров
-    k_regions = 6
-
-    # ускорения (личная и глобальная составляющие)
-    acceleration_c1 = 0.3  # от 0 до 1
-    acceleration_c1 = 0.7  # от 0 до 1
-
-    # максимальное количество итераций
-    max_iterations = 100
-
-    best_local_points = particles.copy()
+    particle_swarm = swarm(3, 3, pixels_list)
+    particle_swarm.start_evolution()
 
     data = []
     for i in range(len(pixels_array)):
@@ -139,6 +222,8 @@ def PSO_Image(image_path):
             # data.append([i, j, pixels_array[i][j][0], pixels_array[i][j][1], pixels_array[i][j][2]])
             data.append([pixels_array[i][j][0], pixels_array[i][j][1], pixels_array[i][j][2]])
     # print(data)
+
+    k_regions = 3
 
     inertia = []
     kmeans = KMeans(n_clusters=k_regions)
