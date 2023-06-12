@@ -20,7 +20,7 @@ class particle:
 
 class swarm:
     pixel_image = []  # список из пикселей всего изображения
-    iterations = 10  # количество итераций
+    iterations = 30  # количество итераций
     particles_num = 50  # количество частиц
     clusters_num = 3  # число кластеров
     particles = []  # список частиц длиной по количеству кластеров, каждый элемент которого
@@ -38,6 +38,8 @@ class swarm:
     omega = 0.9  # весовой коэффициент инерции (изменяется по экспоненциальному закону
     c_1 = 0.4  # коэффициент локального ускорения
     c_2 = 0.7  # коэффициент глобального ускорения
+
+    velocities_all = []  # все средние скорости для каждой из частиц на каждой итерации
 
     def create_random_particle(self):
         return particle(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
@@ -104,6 +106,7 @@ class swarm:
     def correct_velocities(self):
         # корректируем значения скоростей для частиц
         for k in range(self.particles_num):
+            velocity_sum = 0
             for i in range(self.clusters_num):
                 for j in range(3):
                     current_x = (self.particles[k][i].red if j == 0 else (self.particles[k][i].green if j == 1 else
@@ -113,8 +116,12 @@ class swarm:
                     self.velocities[k][i][j] = self.omega * self.velocities[k][i][j] + self.c_1 * r_1 * \
                                             (self.best_global[i][j] - current_x) + self.c_2 * r_2 *\
                                             (self.best_local[k][i][j] - current_x)
+                    velocity_sum += self.velocities[k][i][j]
                     print("New velocity for particle №", k, ", cluster №", i, "and component №", j, "is",
                           self.velocities[k][i][j])
+            self.velocities_all[k].append(velocity_sum / self.particles_num / self.clusters_num)
+
+
 
     def correct_positions(self):
         # корректируем значения позиций для частиц
@@ -147,9 +154,9 @@ class swarm:
                             self.particles[k][i].blue = 255
 
     def start_evolution(self):
-        for current_iteration in range(self.iterations):
+        for current_iteration in range(1, self.iterations + 1):
             print("--------- Iteration №", current_iteration)
-            self.omega = self.omega * math.exp(-(self.iterations - current_iteration) / current_iteration) + 0.4
+            self.omega = 0.9 - self.omega * math.exp(-(self.iterations - current_iteration) / current_iteration)
             print("Current omega is", self.omega)
             # корректируем лучшие локальные и глобальные позиции
             for i in range(self.particles_num):
@@ -169,8 +176,18 @@ class swarm:
             self.correct_velocities()
             # корректируем позиции частиц
             self.correct_positions()
-        print(self.best_global_num_all)
         plt.plot([i for i in range(1, self.iterations + 1)], self.best_global_num_all)
+        plt.show()
+        with open("saved-clusters.txt", mode="w") as file:
+            for i in range(self.clusters_num):
+                file.write("\nCluster № " + str(i))
+                file.write("\nred: " + str(self.best_global[i][0]))
+                file.write("\ngreen: " + str(self.best_global[i][1]))
+                file.write("\nblue: " + str(self.best_global[i][2]))
+        for i in range(self.particles_num):
+            plt.plot([i for i in range(1, self.iterations + 1)], self.velocities_all[i])
+        plt.show()
+
 
 
 
@@ -189,6 +206,7 @@ class swarm:
         self.best_local = [[[0, 0, 0] for _ in range(cluster_num)]
                            for _ in range(particles_num)]
         self.best_global = [0, 0, 0]
+        self.velocities_all = [[] for _ in range(particles_num)]
 
 
 def PSO_Image(image_path):
@@ -213,7 +231,7 @@ def PSO_Image(image_path):
 
     # ---------------------- PSO-K-MEANS
 
-    particle_swarm = swarm(3, 3, pixels_list)
+    particle_swarm = swarm(10, 3, pixels_list)
     particle_swarm.start_evolution()
 
     data = []
