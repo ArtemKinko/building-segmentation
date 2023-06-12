@@ -1,3 +1,4 @@
+import numpy as np
 from PIL import Image
 import random
 import cv2 as cv
@@ -232,7 +233,7 @@ def PSO_Image(image_path):
     # ---------------------- PSO-K-MEANS
 
     particle_swarm = swarm(10, 3, pixels_list)
-    particle_swarm.start_evolution()
+    # particle_swarm.start_evolution()
 
     data = []
     for i in range(len(pixels_array)):
@@ -242,9 +243,12 @@ def PSO_Image(image_path):
     # print(data)
 
     k_regions = 3
+    centroids = np.array([[141.53246625707888, 158.15227811404782, 102.34156731361021],
+                 [29.947509712237782, 45.71537253445113, 24.35174992213759],
+                 [77.01751549662075, 85.89973064116894, 68.84275041430416]])
 
     inertia = []
-    kmeans = KMeans(n_clusters=k_regions)
+    kmeans = KMeans(n_clusters=k_regions, init=centroids, n_init=1)
     kmeans.fit(data)
     inertia.append(kmeans.inertia_)
 
@@ -320,6 +324,7 @@ def PSO_Image(image_path):
     color = new_pixels_array[x_color][y_color]
     print(color)
     black_pixels = []
+    black_pixels_sequence = []
     black_pixels_array = []
     for i in range(image.size[1]):
         temp_black_pixel_array = []
@@ -327,11 +332,18 @@ def PSO_Image(image_path):
             pixel = new_pixels_array[i][j]
             if pixel[0] == color[0] and pixel[1] == color[1] and pixel[2] == color[2]:
                 black_pixels.append([0, 0, 0])
+                black_pixels_sequence.append((0, 0, 0))
+
                 temp_black_pixel_array.append([0, 0, 0])
             else:
                 black_pixels.append([255, 255, 255])
+                black_pixels_sequence.append((255, 255, 255))
                 temp_black_pixel_array.append([255, 255, 255])
         black_pixels_array.append(temp_black_pixel_array)
+
+    black_image = Image.new("RGB", (image.size[0], image.size[1]))
+    black_image.putdata(black_pixels_sequence)
+    black_image.save(image_path + "BLACK.png")
 
     # каждые n x n пикселей считаем количество черных
     pixel_scale = 50
@@ -458,7 +470,7 @@ def PSO_Image(image_path):
     a.set_title('Оригинальное изображение с наложенной маской плотности')
     plt.show()
 
-    # print(kmeans.cluster_centers_)
+    print(kmeans.cluster_centers_)
 
 
 PSO_Image('../Dataset/l1.png')
